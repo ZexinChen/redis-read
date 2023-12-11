@@ -2573,6 +2573,7 @@ int listenToPort(connListener *sfd) {
             return C_ERR;
         }
         if (server.socket_mark_id > 0) anetSetSockMarkId(NULL, sfd->fd[sfd->count], server.socket_mark_id);
+        // * setting up this socket/file descriptor as non-blocking
         anetNonBlock(NULL,sfd->fd[sfd->count]);
         anetCloexec(sfd->fd[sfd->count]);
         sfd->count++;
@@ -2726,6 +2727,7 @@ void initServer(void) {
     adjustOpenFilesLimit();
     const char *clk_msg = monotonicInit();
     serverLog(LL_NOTICE, "monotonic clock: %s", clk_msg);
+    // * aeCreateEventLoop只初始化event loop（el），不注册event和handler。 epoll的相关信息会放在eventloop.apidata
     server.el = aeCreateEventLoop(server.maxclients+CONFIG_FDSET_INCR);
     if (server.el == NULL) {
         serverLog(LL_WARNING,
@@ -2824,6 +2826,7 @@ void initServer(void) {
 
     /* Register a readable event for the pipe used to awake the event loop
      * from module threads. */
+    // * 注册文件相关的event。注意pipe的使用和处理
     if (aeCreateFileEvent(server.el, server.module_pipe[0], AE_READABLE,
         modulePipeReadable,NULL) == AE_ERR) {
             serverPanic(
@@ -2907,18 +2910,20 @@ void initListeners(void) {
         listener->priv = &server.unixsocketperm; /* Unix socket specified */
     }
 
-    /* create all the configured listener, and add handler to start to accept */
+    // * /* create all the configured listener, and add handler to start to accept */
     int listen_fds = 0;
     for (int j = 0; j < CONN_TYPE_MAX; j++) {
         listener = &server.listeners[j];
         if (listener->ct == NULL)
             continue;
 
+        // * bind and listen*/ // ----- step 1
         if (connListen(listener) == C_ERR) {
             serverLog(LL_WARNING, "Failed listening on port %u (%s), aborting.", listener->port, listener->ct->get_type(NULL));
             exit(1);
         }
 
+        // * register socket accept handler */  // ---- step 2
         if (createSocketAcceptHandler(listener, connAcceptHandler(listener->ct)) != C_OK)
             serverPanic("Unrecoverable error creating %s listener accept handler.", listener->ct->get_type(NULL));
 
@@ -6978,6 +6983,7 @@ int main(int argc, char **argv) {
     ACLInit(); /* The ACL subsystem must be initialized ASAP because the
                   basic networking code and client creation depends on it. */
     moduleInitModulesSystem();
+    // * 初始化socket instance
     connTypeInitialize();
 
     /* Store the executable path and arguments in a safe place in order
@@ -7164,6 +7170,7 @@ int main(int argc, char **argv) {
         serverLog(LL_NOTICE, "Configuration loaded");
     }
 
+    // 包含了创建event loopf
     initServer();
     if (background || server.pidfile) createPidFile();
     if (server.set_proc_title) redisSetProcTitle(NULL);
@@ -7177,6 +7184,7 @@ int main(int argc, char **argv) {
         moduleLoadFromQueue();
     }
     ACLLoadUsersAtStartup();
+    // * 初始化socket，绑地址端口等，并开始监听
     initListeners();
     if (server.cluster_enabled) {
         clusterInitLast();
@@ -7226,6 +7234,7 @@ int main(int argc, char **argv) {
     redisSetCpuAffinity(server.server_cpulist);
     setOOMScoreAdj(-1);
 
+    // * Event Loop
     aeMain(server.el);
     aeDeleteEventLoop(server.el);
     return 0;

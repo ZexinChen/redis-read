@@ -49,6 +49,7 @@
 
 /* Include the best multiplexing layer supported by this system.
  * The following should be ordered by performances, descending. */
+// * 不同的os下面会有不同的值
 #ifdef HAVE_EVPORT
 #include "ae_evport.c"
 #else
@@ -82,6 +83,7 @@ aeEventLoop *aeCreateEventLoop(int setsize) {
     eventLoop->beforesleep = NULL;
     eventLoop->aftersleep = NULL;
     eventLoop->flags = 0;
+    // * 根据不同的os，会有不同版本的aeApiCreate， linux是ae_epool版本
     if (aeApiCreate(eventLoop) == -1) goto err;
     /* Events with mask == AE_NONE are not set. So let's initialize the
      * vector with it. */
@@ -168,10 +170,13 @@ int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
     }
     aeFileEvent *fe = &eventLoop->events[fd];
 
+    // * add the file descriptor to event-loop
     if (aeApiAddEvent(eventLoop, fd, mask) == -1)
         return AE_ERR;
     fe->mask |= mask;
+    // * sets the read handler
     if (mask & AE_READABLE) fe->rfileProc = proc;
+    // * sets the write handler
     if (mask & AE_WRITABLE) fe->wfileProc = proc;
     fe->clientData = clientData;
     if (fd > eventLoop->maxfd)
@@ -396,6 +401,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
         }
         /* Call the multiplexing API, will return only on timeout or when
          * some event fires. */
+        // * aeApiPoll() which returns numevents, the number of events ready for read/write. When aeApiPoll() is called, it makes a blocking call to epoll_wait() on the epoll descriptor. This descriptor sets the ready events in el -> fired
         numevents = aeApiPoll(eventLoop, tvp);
 
         /* Don't process file events if not requested. */

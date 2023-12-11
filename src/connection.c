@@ -59,6 +59,7 @@ int connTypeRegister(ConnectionType *ct) {
 
 int connTypeInitialize(void) {
     /* currently socket connection type is necessary  */
+    // * 似乎只是占位，还没有相关的初始化
     serverAssert(RedisRegisterConnectionTypeSocket() == C_OK);
 
     /* currently unix socket connection type is necessary  */

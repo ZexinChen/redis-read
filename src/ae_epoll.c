@@ -32,6 +32,7 @@
 #include <sys/epoll.h>
 
 typedef struct aeApiState {
+    // * holds the epoll file descriptor returned by a call from epoll_create
     int epfd;
     struct epoll_event *events;
 } aeApiState;
@@ -110,6 +111,12 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     aeApiState *state = eventLoop->apidata;
     int retval, numevents = 0;
 
+    //* /* epoll_wait is a blocking call which returns the num of ready events 
+    //* and set the file descriptors in state -> events.
+    //* To avoid prolonged blocking, 'timeout' is passed. Once the 
+    //* timeout expires, epoll_wait returns immediately, passing control to 
+    //* the caller.
+    //* */
     retval = epoll_wait(state->epfd,state->events,eventLoop->setsize,
             tvp ? (tvp->tv_sec*1000 + (tvp->tv_usec + 999)/1000) : -1);
     if (retval > 0) {

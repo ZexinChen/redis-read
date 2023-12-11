@@ -128,12 +128,14 @@ struct connection {
 #define CONFIG_BINDADDR_MAX 16
 
 /* Setup a listener by a connection type */
+// * Setup a listener by a connection type
 struct connListener {
     int fd[CONFIG_BINDADDR_MAX];
     int count;
     char **bindaddr;
     int bindaddr_count;
     int port;
+    // * important, it has all the functionality for the conn
     ConnectionType *ct;
     void *priv; /* used by connection type specified data */
 };

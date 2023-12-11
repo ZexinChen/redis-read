@@ -308,6 +308,7 @@ static void connSocketEventHandler(struct aeEventLoop *el, int fd, void *clientD
     }
 }
 
+// * accept_handler registered in the eventloop by aeCreateFileEvent() */
 static void connSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     int cport, cfd, max = MAX_ACCEPTS_PER_CALL;
     char cip[NET_IP_STR_LEN];
@@ -316,6 +317,7 @@ static void connSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata, int
     UNUSED(privdata);
 
     while(max--) {
+        // * accept() returns a new socket `cfd` upon accepting a conn on `fd`*/
         cfd = anetTcpAccept(server.neterr, fd, cip, sizeof(cip), &cport);
         if (cfd == ANET_ERR) {
             if (errno != EWOULDBLOCK)
@@ -324,6 +326,7 @@ static void connSocketAcceptHandler(aeEventLoop *el, int fd, void *privdata, int
             return;
         }
         serverLog(LL_VERBOSE,"Accepted %s:%d", cip, cport);
+        // * registers read handlers */
         acceptCommonHandler(connCreateAcceptedSocket(cfd, NULL),0,cip);
     }
 }
@@ -400,9 +403,11 @@ static ConnectionType CT_Socket = {
 
     /* ae & accept & listen & error & address handler */
     .ae_handler = connSocketEventHandler,
+    // * 会在server.c里面的createSocketAcceptHandler调用
     .accept_handler = connSocketAcceptHandler,
     .addr = connSocketAddr,
     .is_local = connSocketIsLocal,
+    // * 会在server.c中的initListeners() 中的connListen调用
     .listen = connSocketListen,
 
     /* create/shutdown/close connection */

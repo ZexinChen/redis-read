@@ -416,7 +416,7 @@ int anetUnixGenericConnect(char *err, const char *path, int flags)
     }
     return s;
 }
-
+// * binds the addr and listens on the socket s fd */
 static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len, int backlog, mode_t perm) {
     if (bind(s,sa,len) == -1) {
         anetSetError(err, "bind: %s", strerror(errno));
@@ -444,6 +444,7 @@ static int anetV6Only(char *err, int s) {
     return ANET_OK;
 }
 
+// * 会在server.c中的listenToPort()调用
 static int _anetTcpServer(char *err, int port, char *bindaddr, int af, int backlog)
 {
     int s = -1, rv;
